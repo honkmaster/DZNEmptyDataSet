@@ -467,53 +467,52 @@ static char const * const kEmptyDataSetView =       "emptyDataSetView";
         if (customView) {
             view.customView = customView;
         }
-        else {
-            // Get the data from the data source
-            NSAttributedString *titleLabelString = [self dzn_titleLabelString];
-            NSAttributedString *detailLabelString = [self dzn_detailLabelString];
-            
-            UIImage *buttonImage = [self dzn_buttonImageForState:UIControlStateNormal];
-            NSAttributedString *buttonTitle = [self dzn_buttonTitleForState:UIControlStateNormal];
-            
-            UIImage *image = [self dzn_image];
-            UIColor *imageTintColor = [self dzn_imageTintColor];
-            UIImageRenderingMode renderingMode = imageTintColor ? UIImageRenderingModeAlwaysTemplate : UIImageRenderingModeAlwaysOriginal;
-            
-            view.verticalSpace = [self dzn_verticalSpace];
-            
-            // Configure Image
-            if (image) {
-                if ([image respondsToSelector:@selector(imageWithRenderingMode:)]) {
-                    view.imageView.image = [image imageWithRenderingMode:renderingMode];
-                    view.imageView.tintColor = imageTintColor;
-                }
-                else {
-                    // iOS 6 fallback: insert code to convert imaged if needed
-                    view.imageView.image = image;
-                }
+        
+        // Get the data from the data source
+        NSAttributedString *titleLabelString = [self dzn_titleLabelString];
+        NSAttributedString *detailLabelString = [self dzn_detailLabelString];
+        
+        UIImage *buttonImage = [self dzn_buttonImageForState:UIControlStateNormal];
+        NSAttributedString *buttonTitle = [self dzn_buttonTitleForState:UIControlStateNormal];
+        
+        UIImage *image = [self dzn_image];
+        UIColor *imageTintColor = [self dzn_imageTintColor];
+        UIImageRenderingMode renderingMode = imageTintColor ? UIImageRenderingModeAlwaysTemplate : UIImageRenderingModeAlwaysOriginal;
+        
+        view.verticalSpace = [self dzn_verticalSpace];
+        
+        // Configure Image
+        if (image) {
+            if ([image respondsToSelector:@selector(imageWithRenderingMode:)]) {
+                view.imageView.image = [image imageWithRenderingMode:renderingMode];
+                view.imageView.tintColor = imageTintColor;
             }
-            
-            // Configure title label
-            if (titleLabelString) {
-                view.titleLabel.attributedText = titleLabelString;
+            else {
+                // iOS 6 fallback: insert code to convert imaged if needed
+                view.imageView.image = image;
             }
-            
-            // Configure detail label
-            if (detailLabelString) {
-                view.detailLabel.attributedText = detailLabelString;
-            }
-            
-            // Configure button
-            if (buttonImage) {
-                [view.button setImage:buttonImage forState:UIControlStateNormal];
-                [view.button setImage:[self dzn_buttonImageForState:UIControlStateHighlighted] forState:UIControlStateHighlighted];
-            }
-            else if (buttonTitle) {
-                [view.button setAttributedTitle:buttonTitle forState:UIControlStateNormal];
-                [view.button setAttributedTitle:[self dzn_buttonTitleForState:UIControlStateHighlighted] forState:UIControlStateHighlighted];
-                [view.button setBackgroundImage:[self dzn_buttonBackgroundImageForState:UIControlStateNormal] forState:UIControlStateNormal];
-                [view.button setBackgroundImage:[self dzn_buttonBackgroundImageForState:UIControlStateHighlighted] forState:UIControlStateHighlighted];
-            }
+        }
+        
+        // Configure title label
+        if (titleLabelString) {
+            view.titleLabel.attributedText = titleLabelString;
+        }
+        
+        // Configure detail label
+        if (detailLabelString) {
+            view.detailLabel.attributedText = detailLabelString;
+        }
+        
+        // Configure button
+        if (buttonImage) {
+            [view.button setImage:buttonImage forState:UIControlStateNormal];
+            [view.button setImage:[self dzn_buttonImageForState:UIControlStateHighlighted] forState:UIControlStateHighlighted];
+        }
+        else if (buttonTitle) {
+            [view.button setAttributedTitle:buttonTitle forState:UIControlStateNormal];
+            [view.button setAttributedTitle:[self dzn_buttonTitleForState:UIControlStateHighlighted] forState:UIControlStateHighlighted];
+            [view.button setBackgroundImage:[self dzn_buttonBackgroundImageForState:UIControlStateNormal] forState:UIControlStateNormal];
+            [view.button setBackgroundImage:[self dzn_buttonBackgroundImageForState:UIControlStateHighlighted] forState:UIControlStateHighlighted];
         }
         
         // Configure offset
@@ -931,93 +930,102 @@ Class dzn_baseClassToSwizzleForTarget(id target)
         centerYConstraint.constant = self.verticalOffset;
     }
     
-    // If applicable, set the custom view's constraints
-    if (_customView) {
-        [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[customView]|" options:0 metrics:nil views:@{@"customView":_customView}]];
-        [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[customView]|" options:0 metrics:nil views:@{@"customView":_customView}]];
+    CGFloat width = CGRectGetWidth(self.frame) ? : CGRectGetWidth([UIScreen mainScreen].bounds);
+    CGFloat padding = roundf(width/16.0);
+    CGFloat verticalSpace = self.verticalSpace ? : 11.0; // Default is 11 pts
+    
+    NSMutableArray *subviewStrings = [NSMutableArray array];
+    NSMutableDictionary *views = [NSMutableDictionary dictionary];
+    NSDictionary *metrics = @{@"padding": @(padding)};
+    
+    // Assign the image view's horizontal constraints
+    if (_imageView.superview) {
+        
+        [subviewStrings addObject:@"imageView"];
+        views[[subviewStrings lastObject]] = _imageView;
+        
+        [self.contentView addConstraint:[self.contentView equallyRelatedConstraintWithView:_imageView attribute:NSLayoutAttributeCenterX]];
     }
+    
+    // Assign the custom view horizontal constraints and size
+    if(_customView.superview){
+        
+        [subviewStrings addObject:@"customView"];
+        views[[subviewStrings lastObject]] = _customView;
+        
+        [self.contentView addConstraint:[self.contentView equallyRelatedConstraintWithView:_customView attribute:NSLayoutAttributeCenterX]];
+        
+        // Fix the width and height
+        NSString *visualFormat = [NSString stringWithFormat:@"H:[customView(==%1.2f)]", CGRectGetWidth(_customView.frame)];
+        [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:visualFormat options:0 metrics:nil views:@{@"customView":_customView}]];
+        
+        visualFormat = [NSString stringWithFormat:@"V:[customView(==%1.2f)]", CGRectGetHeight(_customView.frame)];
+        [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:visualFormat options:0 metrics:nil views:@{@"customView":_customView}]];
+    }
+    
+    // Assign the title label's horizontal constraints
+    if ([self canShowTitle]) {
+        
+        [subviewStrings addObject:@"titleLabel"];
+        views[[subviewStrings lastObject]] = _titleLabel;
+        
+        [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-(padding@750)-[titleLabel(>=0)]-(padding@750)-|"
+                                                                                 options:0 metrics:metrics views:views]];
+    }
+    // or removes from its superview
     else {
-        CGFloat width = CGRectGetWidth(self.frame) ? : CGRectGetWidth([UIScreen mainScreen].bounds);
-        CGFloat padding = roundf(width/16.0);
-        CGFloat verticalSpace = self.verticalSpace ? : 11.0; // Default is 11 pts
+        [_titleLabel removeFromSuperview];
+        _titleLabel = nil;
+    }
+    
+    // Assign the detail label's horizontal constraints
+    if ([self canShowDetail]) {
         
-        NSMutableArray *subviewStrings = [NSMutableArray array];
-        NSMutableDictionary *views = [NSMutableDictionary dictionary];
-        NSDictionary *metrics = @{@"padding": @(padding)};
+        [subviewStrings addObject:@"detailLabel"];
+        views[[subviewStrings lastObject]] = _detailLabel;
         
-        // Assign the image view's horizontal constraints
-        if (_imageView.superview) {
-            
-            [subviewStrings addObject:@"imageView"];
-            views[[subviewStrings lastObject]] = _imageView;
-            
-            [self.contentView addConstraint:[self.contentView equallyRelatedConstraintWithView:_imageView attribute:NSLayoutAttributeCenterX]];
-        }
+        [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-(padding@750)-[detailLabel(>=0)]-(padding@750)-|"
+                                                                                 options:0 metrics:metrics views:views]];
+    }
+    // or removes from its superview
+    else {
+        [_detailLabel removeFromSuperview];
+        _detailLabel = nil;
+    }
+    
+    // Assign the button's horizontal constraints
+    if ([self canShowButton]) {
         
-        // Assign the title label's horizontal constraints
-        if ([self canShowTitle]) {
-            
-            [subviewStrings addObject:@"titleLabel"];
-            views[[subviewStrings lastObject]] = _titleLabel;
-            
-            [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-(padding@750)-[titleLabel(>=0)]-(padding@750)-|"
-                                                                                     options:0 metrics:metrics views:views]];
-        }
-        // or removes from its superview
-        else {
-            [_titleLabel removeFromSuperview];
-            _titleLabel = nil;
-        }
+        [subviewStrings addObject:@"button"];
+        views[[subviewStrings lastObject]] = _button;
         
-        // Assign the detail label's horizontal constraints
-        if ([self canShowDetail]) {
-            
-            [subviewStrings addObject:@"detailLabel"];
-            views[[subviewStrings lastObject]] = _detailLabel;
-            
-            [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-(padding@750)-[detailLabel(>=0)]-(padding@750)-|"
-                                                                                     options:0 metrics:metrics views:views]];
-        }
-        // or removes from its superview
-        else {
-            [_detailLabel removeFromSuperview];
-            _detailLabel = nil;
-        }
+        [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-(padding@750)-[button(>=0)]-(padding@750)-|"
+                                                                                 options:0 metrics:metrics views:views]];
+    }
+    // or removes from its superview
+    else {
+        [_button removeFromSuperview];
+        _button = nil;
+    }
+    
+    
+    NSMutableString *verticalFormat = [NSMutableString new];
+    
+    // Build a dynamic string format for the vertical constraints, adding a margin between each element. Default is 11 pts.
+    for (int i = 0; i < subviewStrings.count; i++) {
         
-        // Assign the button's horizontal constraints
-        if ([self canShowButton]) {
-            
-            [subviewStrings addObject:@"button"];
-            views[[subviewStrings lastObject]] = _button;
-            
-            [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-(padding@750)-[button(>=0)]-(padding@750)-|"
-                                                                                     options:0 metrics:metrics views:views]];
-        }
-        // or removes from its superview
-        else {
-            [_button removeFromSuperview];
-            _button = nil;
-        }
+        NSString *string = subviewStrings[i];
+        [verticalFormat appendFormat:@"[%@]", string];
         
-        
-        NSMutableString *verticalFormat = [NSMutableString new];
-        
-        // Build a dynamic string format for the vertical constraints, adding a margin between each element. Default is 11 pts.
-        for (int i = 0; i < subviewStrings.count; i++) {
-            
-            NSString *string = subviewStrings[i];
-            [verticalFormat appendFormat:@"[%@]", string];
-            
-            if (i < subviewStrings.count-1) {
-                [verticalFormat appendFormat:@"-(%.f@750)-", verticalSpace];
-            }
+        if (i < subviewStrings.count-1) {
+            [verticalFormat appendFormat:@"-(%.f@750)-", verticalSpace];
         }
-        
-        // Assign the vertical constraints to the content view
-        if (verticalFormat.length > 0) {
-            [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:[NSString stringWithFormat:@"V:|%@|", verticalFormat]
-                                                                                     options:0 metrics:metrics views:views]];
-        }
+    }
+    
+    // Assign the vertical constraints to the content view
+    if (verticalFormat.length > 0) {
+        [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:[NSString stringWithFormat:@"V:|%@|", verticalFormat]
+                                                                                 options:0 metrics:metrics views:views]];
     }
 }
 
